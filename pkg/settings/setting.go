@@ -24,6 +24,15 @@ const (
 	defaultStaticRootPath              = "public"
 )
 
+const (
+    SqlServerDbType string = "sqlserver"
+    AzureSqlDbType  string = "azuresqldb"
+    
+    // Azure SQL DB authentication method types
+    AzureAuthPassword        string = "password"
+    AzureAuthServicePrincipal string = "service_principal"
+)
+
 // SystemMode represents running mode of system
 type SystemMode string
 
@@ -206,6 +215,16 @@ type DatabaseConfig struct {
 	MaxIdleConnection     uint16
 	MaxOpenConnection     uint16
 	ConnectionMaxLifeTime uint32
+	
+	AzureAuthMethod   string // "password" or "service_principal"
+    AzureTenantID     string
+    AzureClientID     string
+    AzureClientSecret string
+
+    // Connection pooling settings
+    AzureMaxIdleConns   int
+    AzureMaxOpenConns   int
+    AzureConnMaxLifetime int
 }
 
 // SMTPConfig represents the SMTP setting config
