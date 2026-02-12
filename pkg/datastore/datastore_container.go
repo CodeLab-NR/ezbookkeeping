@@ -77,36 +77,53 @@ func initializeDatabase(dbConfig *settings.DatabaseConfig) (*Database, error) {
 	}
 
 	if dbConfig.DatabaseType == settings.MySqlDbType {
-		connStr, err = getMysqlConnectionString(dbConfig)
-	} else if dbConfig.DatabaseType == settings.PostgresDbType {
-		connStr, err = getPostgresConnectionString(dbConfig)
-	} else if dbConfig.DatabaseType == settings.Sqlite3DbType {
-		connStr, err = getSqlite3ConnectionString(dbConfig)
-	} else {
-		return nil, errs.ErrDatabaseTypeInvalid
-	}
+        connStr, err = getMysqlConnectionString(dbConfig)
+    } else if dbConfig.DatabaseType == settings.PostgresDbType {
+        connStr, err = getPostgresConnectionString(dbConfig)
+    } else if dbConfig.DatabaseType == settings.Sqlite3DbType {
+        connStr, err = getSqlite3ConnectionString(dbConfig)
+    } else if dbConfig.DatabaseType == settings.SqlServerDbType {
+        connStr, err = getMssqlConnectionString(dbConfig)
+    } else if dbConfig.DatabaseType == settings.AzureSqlDbType {
+        connStr, err = getMssqlConnectionString(dbConfig)
+    } else {
+        return nil, errs.ErrDatabaseTypeInvalid
+    }
 
-	if err != nil {
-		return nil, err
-	}
+    if err != nil {
+        return nil, err
+    }
 
-	connStrs := []string{
-		connStr,
-	}
-	engineGroup, err := xorm.NewEngineGroup(dbConfig.DatabaseType, connStrs, xorm.RoundRobinPolicy())
+    connStrs := []string{connStr}
+    
+    // Determine driver name
+    driverName := dbConfig.DatabaseType
+    if dbConfig.DatabaseType == settings.SqlServerDbType || dbConfig.DatabaseType == settings.AzureSqlDbType {
+        driverName = "mssql"
+    }
+    
+    engineGroup, err := xorm.NewEngineGroup(driverName, connStrs, xorm.RoundRobinPolicy())
 
-	if err != nil {
-		return nil, err
-	}
+    if err != nil {
+        return nil, err
+    }
 
-	engineGroup.SetMaxIdleConns(int(dbConfig.MaxIdleConnection))
-	engineGroup.SetMaxOpenConns(int(dbConfig.MaxOpenConnection))
-	engineGroup.SetConnMaxLifetime(time.Duration(dbConfig.ConnectionMaxLifeTime) * time.Second)
+    // Set connection pool settings
+    if dbConfig.DatabaseType == settings.SqlServerDbType || dbConfig.DatabaseType == settings.AzureSqlDbType {
+        maxIdle, maxOpen, connLifetime := ConfigureMssqlConnectionPool(dbConfig)
+        engineGroup.SetMaxIdleConns(maxIdle)
+        engineGroup.SetMaxOpenConns(maxOpen)
+        engineGroup.SetConnMaxLifetime(time.Duration(connLifetime) * time.Second)
+    } else {
+        engineGroup.SetMaxIdleConns(int(dbConfig.MaxIdleConnection))
+        engineGroup.SetMaxOpenConns(int(dbConfig.MaxOpenConnection))
+        engineGroup.SetConnMaxLifetime(time.Duration(dbConfig.ConnectionMaxLifeTime) * time.Second)
+    }
 
-	return &Database{
-		databaseType: dbConfig.DatabaseType,
-		engineGroup:  engineGroup,
-	}, nil
+    return &Database{
+        databaseType: dbConfig.DatabaseType,
+        engineGroup: engineGroup,
+    }, nil
 }
 
 func setDatabaseLogger(database *Database, config *settings.Config) {
