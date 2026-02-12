@@ -45,21 +45,44 @@ func (db *Database) DoTransaction(c core.Context, fn func(sess *xorm.Session) er
 }
 
 // SetSavePoint sets a save point in the current transaction for Postgres
-func (db *Database) SetSavePoint(sess *xorm.Session, savePointName string) error {
-	if db.databaseType == settings.PostgresDbType {
-		_, err := sess.Exec("SAVEPOINT " + savePointName)
-		return err
-	}
+// func (db *Database) SetSavePoint(sess *xorm.Session, savePointName string) error {
+// 	if db.databaseType == settings.PostgresDbType {
+// 		_, err := sess.Exec("SAVEPOINT " + savePointName)
+// 		return err
+// 	}
 
-	return nil
+// 	return nil
+// }
+
+func (db *Database) SetSavePoint(sess *xorm.Session, savePointName string) error {
+    if db.databaseType == settings.PostgresDbType {
+        _, err := sess.Exec("SAVEPOINT " + savePointName)
+        return err
+    } else if db.databaseType == settings.SqlServerDbType || db.databaseType == settings.AzureSqlDbType {
+        // MSSQL uses SAVE TRANSACTION
+        _, err := sess.Exec("SAVE TRANSACTION [" + savePointName + "]")
+        return err
+    }
+    return nil
 }
 
 // RollbackToSavePoint rolls back to the specified save point in the current transaction for Postgres
-func (db *Database) RollbackToSavePoint(sess *xorm.Session, savePointName string) error {
-	if db.databaseType == settings.PostgresDbType {
-		_, err := sess.Exec("ROLLBACK TO SAVEPOINT " + savePointName)
-		return err
-	}
+// func (db *Database) RollbackToSavePoint(sess *xorm.Session, savePointName string) error {
+// 	if db.databaseType == settings.PostgresDbType {
+// 		_, err := sess.Exec("ROLLBACK TO SAVEPOINT " + savePointName)
+// 		return err
+// 	}
 
-	return nil
+// 	return nil
+// }
+func (db *Database) RollbackToSavePoint(sess *xorm.Session, savePointName string) error {
+    if db.databaseType == settings.PostgresDbType {
+        _, err := sess.Exec("ROLLBACK TO SAVEPOINT " + savePointName)
+        return err
+    } else if db.databaseType == settings.SqlServerDbType || db.databaseType == settings.AzureSqlDbType {
+        // MSSQL uses ROLLBACK TRANSACTION
+        _, err := sess.Exec("ROLLBACK TRANSACTION [" + savePointName + "]")
+        return err
+    }
+    return nil
 }
